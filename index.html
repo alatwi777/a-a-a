@@ -5926,91 +5926,47 @@
             localStorage.removeItem('current_drawing');
         }
 (function registerDevice() {
-    // انتظار تحميل Firebase إذا لزم الأمر
-    if (typeof firebase === 'undefined') {
-        console.log('⏳ Firebase غير جاهز، إعادة المحاولة بعد ثانية...');
+    // التحقق من Firebase
+    if (typeof firebase === 'undefined' || !firebase.apps.length) {
+        console.log('⏳ Firebase غير جاهز، إعادة المحاولة...');
         setTimeout(registerDevice, 1000);
         return;
     }
     
     const db = firebase.firestore();
     
-    // إنشاء معرف فريد للجهاز (يتم حفظه في localStorage)
+    // معرف فريد للجهاز
     let deviceId = localStorage.getItem('device_id');
     if (!deviceId) {
-        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
+        deviceId = 'd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         localStorage.setItem('device_id', deviceId);
     }
     
-    // استخراج بيانات الطالب من الصفحة
-    let studentName = 'طالب';
-    let civilId = 'غير معروف';
-    let grade = '-';
-    
-    // محاولة استخراج الاسم
-    const nameSelectors = ['h1', 'h2', '.student-name', '[class*="name"]', '.name', '#studentName'];
-    for (const sel of nameSelectors) {
-        const el = document.querySelector(sel);
-        if (el && el.innerText?.trim() && !el.innerText.includes('ورقة') && !el.innerText.includes('الاختبار')) {
-            studentName = el.innerText.trim();
-            break;
-        }
-    }
-    
-    // محاولة استخراج السجل المدني
-    const civilSelectors = ['[class*="civil"]', '[id*="civil"]', 'input[placeholder*="سجل"]', '.civil-id', '[data-civil]'];
-    for (const sel of civilSelectors) {
-        const el = document.querySelector(sel);
-        if (el) {
-            const value = el.value || el.innerText?.trim() || el.getAttribute('data-civil');
-            if (value && value !== 'غير معروف') {
-                civilId = value;
-                break;
-            }
-        }
-    }
-    
-    // محاولة استخراج الصف
-    const gradeSelectors = ['[class*="grade"]', '[class*="الصف"]', '.grade', 'select[id*="grade"]'];
-    for (const sel of gradeSelectors) {
-        const el = document.querySelector(sel);
-        if (el) {
-            const value = el.value || el.innerText?.trim();
-            if (value && value !== '-') {
-                grade = value;
-                break;
-            }
-        }
-    }
-    
-    // محاولة استخراج من localStorage (إذا تم حفظها مسبقاً)
-    try {
-        const stored = localStorage.getItem('currentStudent');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed.name) studentName = parsed.name;
-            if (parsed.civilId) civilId = parsed.civilId;
-            if (parsed.grade) grade = parsed.grade;
-        }
-    } catch(e) {}
+    // =============================================
+    // IMPORTANT: أدخل بيانات الطالب يدوياً هنا
+    // =============================================
+    // غيّر هذه القيم حسب بيانات الطالب الحقيقي
+    const STUDENT_NAME = "أحمد محمد";      // <- اكتب اسم الطالب هنا
+    const STUDENT_CIVIL = "1234567890";    // <- اكتب السجل المدني هنا
+    const STUDENT_GRADE = "1";             // <- اكتب الصف هنا
+    // =============================================
     
     let isActive = true;
     
-    // دالة تسجيل الوجود (heartbeat)
     function heartbeat() {
         if (!isActive) return;
         db.collection('online_devices').doc(deviceId).set({
             deviceId: deviceId,
-            studentName: studentName,
-            civilId: civilId,
-            grade: grade,
+            studentName: STUDENT_NAME,
+            civilId: STUDENT_CIVIL,
+            grade: STUDENT_GRADE,
             lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
             userAgent: navigator.userAgent,
             status: 'online'
         }).then(() => {
-            console.log('✅ تم تسجيل وجود الطالب:', studentName, civilId);
+            console.log('✅ تم تسجيل الطالب:', STUDENT_NAME, STUDENT_CIVIL);
         }).catch(err => {
-            console.error('❌ خطأ في تسجيل الجهاز:', err);
+            console.error('❌ خطأ:', err);
         });
     }
     
@@ -6018,17 +5974,16 @@
     heartbeat();
     
     // تسجيل دوري كل 20 ثانية
-    const heartbeatInterval = setInterval(heartbeat, 20000);
+    const interval = setInterval(heartbeat, 20000);
     
-    // عند إغلاق الصفحة أو مغادرتها، حذف السجل
+    // عند إغلاق الصفحة
     window.addEventListener('beforeunload', () => {
         isActive = false;
-        clearInterval(heartbeatInterval);
+        clearInterval(interval);
         db.collection('online_devices').doc(deviceId).delete().catch(console.error);
-        console.log('👋 تم حذف تسجيل الجهاز:', studentName);
     });
     
-    // إضافة مؤشر مرئي صغير في الزاوية (اختياري)
+    // مؤشر مرئي
     const indicator = document.createElement('div');
     indicator.style.cssText = `
         position: fixed;
@@ -6036,23 +5991,19 @@
         left: 10px;
         background: #2F6B2F;
         color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        z-index: 99999;
-        font-family: monospace;
-        direction: ltr;
-        opacity: 0.7;
+        padding: 6px 14px;
+        border-radius: 25px;
+        font-size: 12px;
+        z-index: 999999;
+        font-family: Arial, sans-serif;
         cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     `;
-    indicator.innerHTML = '🟢 مسجل';
-    indicator.title = `الطالب: ${studentName}\nالسجل: ${civilId}`;
-    indicator.onclick = () => {
-        alert(`✅ معلومات التسجيل:\nالطالب: ${studentName}\nالسجل: ${civilId}\nالصف: ${grade}\n\nالجهاز مسجل في Firebase ويظهر للمعلم`);
-    };
+    indicator.innerHTML = '🟢 مسجل: ' + STUDENT_NAME;
+    indicator.onclick = () => alert(`الطالب: ${STUDENT_NAME}\nالسجل: ${STUDENT_CIVIL}\nالصف: ${STUDENT_GRADE}`);
     document.body.appendChild(indicator);
     
-    console.log('🚀 جهاز الطالب مسجل بنجاح:', { studentName, civilId, grade, deviceId });
+    console.log('✅ جهاز الطالب مسجل بنجاح');
 })();
     </script>
 </body>
