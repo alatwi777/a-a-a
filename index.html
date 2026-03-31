@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الاختبارات الإلكترونية - معلم وطالب</title>
+    <title>نظام الاختبارات الإلكترونية</title>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -121,15 +122,15 @@
             border: 1px solid #ddd;
             border-top: none;
             border-radius: 0 0 5px 5px;
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
             z-index: 1000;
             display: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
         .student-suggestion-item {
-            padding: 10px 15px;
+            padding: 12px 15px;
             cursor: pointer;
             border-bottom: 1px solid #f0f0f0;
             transition: background-color 0.2s;
@@ -142,11 +143,18 @@
         .student-suggestion-item .student-name {
             font-weight: bold;
             color: #1a5f7a;
+            font-size: 16px;
         }
         
         .student-suggestion-item .student-civil {
             font-size: 12px;
             color: #666;
+            margin-right: 10px;
+        }
+        
+        .student-suggestion-item .student-grade {
+            font-size: 11px;
+            color: #999;
             margin-right: 10px;
         }
         
@@ -176,8 +184,9 @@
         }
         
         .form-group input[readonly] {
-            background-color: #f5f5f5;
+            background-color: #f8f9fa;
             cursor: default;
+            border-color: #e0e0e0;
         }
         
         .btn {
@@ -689,6 +698,28 @@
             font-weight: bold;
         }
         
+        .grades-control {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .grade-input-small {
+            width: 70px;
+            padding: 5px;
+            text-align: center;
+        }
+        
+        .grades-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-right: 4px solid #1a5f7a;
+        }
+        
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -722,6 +753,10 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 10px;
+            }
+            
+            .student-suggestions {
+                max-height: 200px;
             }
         }
         
@@ -764,21 +799,21 @@
                     <div id="loginForm">
                         <!-- حقل البحث عن الطالب (يظهر فقط للطالب) -->
                         <div id="studentSearchField" class="form-group">
-                            <label for="studentSearchInput">ابحث باسم الطالب</label>
+                            <label for="studentSearchInput">🔍 ابحث باسم الطالب</label>
                             <div class="student-search-container">
-                                <input type="text" id="studentSearchInput" class="search-input" placeholder="اكتب اسم الطالب... (مثال: محمد)">
+                                <input type="text" id="studentSearchInput" class="search-input" placeholder="اكتب جزءاً من اسم الطالب... (مثال: محمد)">
                                 <div id="studentSuggestions" class="student-suggestions"></div>
                             </div>
-                            <small style="color: #666;">💡 اكتب جزءاً من الاسم لتظهر لك قائمة الطلاب</small>
+                            <small style="color: #666; display: block; margin-top: 5px;">💡 اكتب أول حرفين أو جزءاً من الاسم لتظهر لك قائمة الطلاب</small>
                         </div>
                         
                         <div class="form-group">
                             <label for="civilId" id="civilIdLabel">السجل المدني</label>
-                            <input type="text" id="civilId" placeholder="يتم تعبئته تلقائياً عند اختيار الاسم" readonly>
+                            <input type="text" id="civilId" placeholder="يتم تعبئته تلقائياً عند اختيار الطالب" readonly>
                         </div>
                         
                         <div class="form-group">
-                            <label for="testCode">كود الاختبار</label>
+                            <label for="testCode">🔑 كود الاختبار</label>
                             <input type="text" id="testCode" placeholder="أدخل كود الاختبار">
                         </div>
                         
@@ -790,7 +825,7 @@
             </div>
         </div>
         
-        <!-- واجهة الطالب (نفس الكود السابق) -->
+        <!-- واجهة الطالب -->
         <div id="studentPage" style="display: none;">
             <div class="container">
                 <header>
@@ -849,7 +884,7 @@
             </div>
         </div>
         
-        <!-- واجهة المعلم (مختصرة للاختصار، لكنها كاملة في الكود الأصلي) -->
+        <!-- واجهة المعلم -->
         <div id="teacherPage" style="display: none;">
             <div class="container">
                 <header>
@@ -858,48 +893,264 @@
                 </header>
                 
                 <div class="teacher-tabs">
-                    <button class="tab-btn active" data-tab="studentsData">بيانات الطالب</button>
-                    <button class="tab-btn" data-tab="testInfo">إضافة اختبار جديد</button>
-                    <button class="tab-btn" data-tab="savedTests">الاختبارات المحفوظة</button>
-                    <button class="tab-btn" data-tab="answerKey">مفتاح الإجابة</button>
-                    <button class="tab-btn" data-tab="results">النتائج</button>
+                    <button class="tab-btn active" data-tab="studentsData">📋 بيانات الطالب</button>
+                    <button class="tab-btn" data-tab="testInfo">📝 إضافة اختبار جديد</button>
+                    <button class="tab-btn" data-tab="savedTests">📚 الاختبارات المحفوظة</button>
+                    <button class="tab-btn" data-tab="answerKey">🔑 مفتاح الإجابة</button>
+                    <button class="tab-btn" data-tab="results">📊 النتائج</button>
                 </div>
                 
+                <!-- تبويب بيانات الطالب -->
                 <div id="studentsData" class="tab-content active">
                     <h2>بيانات الطالب العامة</h2>
+                    
                     <div class="form-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <input type="text" id="addStudentName" placeholder="اسم الطالب" style="flex: 1;">
-                        <input type="text" id="addStudentGrade" placeholder="الصف" style="flex: 1;">
-                        <input type="text" id="addStudentCivilId" placeholder="السجل المدني" style="flex: 1;">
-                        <input type="text" id="addStudentCommittee" placeholder="اللجنة" style="flex: 1;">
-                        <button class="btn btn-success" id="addStudentBtn">إضافة طالب</button>
+                        <input type="text" id="addStudentName" placeholder="اسم الطالب" style="flex: 1; min-width: 200px;">
+                        <input type="text" id="addStudentGrade" placeholder="الصف" style="flex: 1; min-width: 150px;">
+                        <input type="text" id="addStudentCivilId" placeholder="السجل المدني" style="flex: 1; min-width: 200px;">
+                        <input type="text" id="addStudentCommittee" placeholder="اللجنة" style="flex: 1; min-width: 150px;">
+                        <button class="btn btn-success" id="addStudentBtn" style="width: auto;">➕ إضافة طالب</button>
                     </div>
+                    
+                    <div class="file-input-container">
+                        <label class="file-input-label">
+                            📁 استيراد طلاب من ملف Excel
+                            <input type="file" id="excelFileInput" class="file-input" accept=".xlsx, .xls, .csv">
+                        </label>
+                    </div>
+                    
+                    <div style="margin: 10px 0; color: #666;">
+                        <small>💡 يمكنك استيراد ملف Excel يحتوي على أعمدة: (اسم الطالب، الصف، السجل المدني، اللجنة)</small>
+                    </div>
+                    
+                    <div id="importStatus" style="display: none; margin-bottom: 10px;"></div>
+                    
                     <table id="studentsTable">
-                        <thead><tr><th>السجل المدني</th><th>الصف</th><th>اسم الطالب</th><th>اللجنة</th><th>الإجراءات</th></tr></thead>
-                        <tbody id="studentsTableBody"></tbody>
+                        <thead>
+                            <tr>
+                                <th>السجل المدني</th>
+                                <th>الصف</th>
+                                <th>اسم الطالب</th>
+                                <th>اللجنة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                        </tbody>
                     </table>
+                    
+                    <div style="margin-top: 20px; color: #1a5f7a; font-weight: bold;">
+                        <span id="studentsCount">0</span> طالب مسجل في النظام
+                    </div>
                 </div>
                 
+                <!-- تبويب إضافة اختبار جديد -->
                 <div id="testInfo" class="tab-content">
                     <h2>إضافة اختبار جديد</h2>
-                    <div class="form-group"><label>اسم الاختبار</label><input type="text" id="testName" value="الاختبار الأول"></div>
-                    <div class="form-group"><label>المادة</label><input type="text" id="testSubject" value="الرياضيات"></div>
-                    <div class="form-group"><label>زمن الاختبار (دقائق)</label><input type="number" id="testDuration" value="60"></div>
-                    <div class="form-group"><label>اسم المعلم</label><input type="text" id="testTeacher" value="معلم الرياضيات"></div>
-                    <div class="form-group"><label>كود الاختبار</label><input type="text" id="testCodeTeacher" value="TEST001"></div>
-                    <div class="form-group"><label>عدد الأسئلة الاختيارية</label><input type="number" id="questionsCount" value="25"></div>
-                    <div class="form-group"><label>درجة كل سؤال اختياري</label><input type="number" id="mcqGradePerQuestion" value="2"></div>
-                    <div class="form-group"><label>عدد أسئلة الصح والخطأ</label><input type="number" id="tfQuestionsCount" value="12"></div>
-                    <div class="form-group"><label>درجة كل سؤال صح/خطأ</label><input type="number" id="tfGradePerQuestion" value="1"></div>
-                    <div class="form-group"><label>هل يوجد سؤال مقالي؟</label><select id="hasEssayQuestion"><option value="no">لا</option><option value="yes">نعم</option></select></div>
-                    <div class="form-group" id="essayQuestionField" style="display:none;"><label>نص السؤال المقالي</label><textarea id="essayQuestionText" rows="3">اكتب مقالاً عن أهمية التعليم الإلكتروني:</textarea></div>
-                    <div class="form-group" id="essayGradeField" style="display:none;"><label>درجة السؤال المقالي</label><input type="number" id="essayGrade" value="20"></div>
+                    
+                    <div class="grades-info">
+                        <strong>📌 ملاحظة:</strong> سيتم حفظ الاختبار وإرساله للطلاب تلقائياً بعد الإنشاء.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testName">اسم الاختبار</label>
+                        <input type="text" id="testName" placeholder="أدخل اسم الاختبار" value="الاختبار النصفي الأول">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testSubject">المادة</label>
+                        <input type="text" id="testSubject" placeholder="أدخل المادة" value="الرياضيات">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testDuration">زمن الاختبار (دقائق)</label>
+                        <input type="number" id="testDuration" placeholder="أدخل زمن الاختبار" value="60">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testTeacher">اسم المعلم</label>
+                        <input type="text" id="testTeacher" placeholder="أدخل اسم المعلم" value="معلم الرياضيات">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="testCodeTeacher">كود الاختبار</label>
+                        <input type="text" id="testCodeTeacher" placeholder="أدخل كود الاختبار" value="TEST001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="questionsCount">عدد الأسئلة الاختيارية</label>
+                        <input type="number" id="questionsCount" placeholder="أدخل عدد الأسئلة" value="25" min="1" max="50">
+                    </div>
+                    
+                    <div class="form-group grades-control">
+                        <label for="mcqGradePerQuestion" style="min-width: 180px;">درجة كل سؤال اختياري:</label>
+                        <input type="number" id="mcqGradePerQuestion" value="2" min="0.5" max="10" step="0.5" class="grade-input-small">
+                        <span>درجة</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="hasEssayQuestion">هل يوجد سؤال مقالي؟</label>
+                        <select id="hasEssayQuestion" class="form-control">
+                            <option value="no">لا</option>
+                            <option value="yes">نعم</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="essayQuestionField" style="display: none;">
+                        <label for="essayQuestionText">نص السؤال المقالي</label>
+                        <textarea id="essayQuestionText" rows="3" placeholder="اكتب نص السؤال المقالي هنا...">اكتب مقالاً عن أهمية التعليم الإلكتروني في وقتنا الحالي:</textarea>
+                    </div>
+                    
+                    <div class="form-group" id="essayGradeField" style="display: none;">
+                        <label for="essayGrade">درجة السؤال المقالي</label>
+                        <input type="number" id="essayGrade" placeholder="أدخل درجة السؤال المقالي" value="20" min="1" max="100">
+                    </div>
+                    
+                    <div class="form-group grades-control">
+                        <label for="tfQuestionsCount" style="min-width: 180px;">عدد أسئلة الصح والخطأ:</label>
+                        <input type="number" id="tfQuestionsCount" value="12" min="1" max="60" class="grade-input-small">
+                        <label for="tfGradePerQuestion">درجة كل سؤال:</label>
+                        <input type="number" id="tfGradePerQuestion" value="1" min="0.5" max="10" step="0.5" class="grade-input-small">
+                        <span>درجة</span>
+                    </div>
+                    
+                    <div class="form-group" style="background-color: #f0f8ff; padding: 15px; border-radius: 5px; border-right: 4px solid #1a5f7a;">
+                        <label for="totalGrade" style="font-size: 18px; color: #1a5f7a;">المجموع الكلي (محسوب تلقائياً)</label>
+                        <input type="number" id="totalGrade" value="82" readonly style="background-color: white; font-size: 20px; font-weight: bold; text-align: center;">
+                        <div style="margin-top: 10px; font-size: 14px; color: #666;">
+                            <div>الاختيارية: <span id="totalMcqGrade">50</span> درجة</div>
+                            <div>الصح والخطأ: <span id="totalTfGrade">12</span> درجة</div>
+                            <div>المقالي: <span id="totalEssayGrade">20</span> درجة</div>
+                        </div>
+                    </div>
+                    
                     <button class="btn btn-success btn-full" id="sendTestToStudentsBtn">📤 إرسال الاختبار للطلاب</button>
+                    
+                    <button class="btn btn-info btn-full" id="quickTestBtn" style="margin-top: 10px;">
+                        ➕ إنشاء اختبار سريع
+                    </button>
+                    
+                    <div class="message" id="testInfoMessage" style="display: none;"></div>
                 </div>
                 
-                <div id="savedTests" class="tab-content"><h2>الاختبارات المحفوظة</h2><div id="savedTestsList"></div></div>
-                <div id="answerKey" class="tab-content"><h2>مفتاح الإجابة</h2><select id="selectTestForAnswerKey"></select><div id="teacherShadingSheet"></div></div>
-                <div id="results" class="tab-content"><h2>النتائج</h2><select id="selectTestResults"></select><button id="loadResultsBtn">تحميل</button><table id="resultsTable"><thead><tr><th>الاسم</th><th>السجل</th><th>الصف</th><th>الدرجة</th><th>المجموع</th></tr></thead><tbody id="resultsTableBody"></tbody></table></div>
+                <!-- تبويب الاختبارات المحفوظة -->
+                <div id="savedTests" class="tab-content">
+                    <h2>الاختبارات المحفوظة والمرسلة</h2>
+                    
+                    <div style="margin-bottom: 20px; color: #1a5f7a; font-weight: bold;">
+                        <span id="testsCount">0</span> اختبار محفوظ في النظام
+                    </div>
+                    
+                    <div class="saved-tests" id="savedTestsList">
+                        <p id="noTestsMessage">لا توجد اختبارات محفوظة حالياً. قم بإضافة اختبار جديد من تبويب "إضافة اختبار جديد".</p>
+                    </div>
+                </div>
+                
+                <!-- تبويب مفتاح الإجابة -->
+                <div id="answerKey" class="tab-content">
+                    <h2>مفتاح الإجابة للمعلم</h2>
+                    <p>هنا يمكنك تعيين الإجابات الصحيحة للأسئلة ليتم التصحيح التلقائي بناءً عليها.</p>
+                    
+                    <div class="form-group">
+                        <label for="selectTestForAnswerKey">اختر اختبار:</label>
+                        <select id="selectTestForAnswerKey" style="width: 100%;">
+                            <option value="">-- اختر اختبار --</option>
+                        </select>
+                    </div>
+                    
+                    <div id="teacherShadingSheet" class="shading-sheet" style="display: none;">
+                        <h3>الإجابات الصحيحة للأسئلة الاختيارية</h3>
+                        <div class="questions-container" id="teacherMcqKey"></div>
+                        
+                        <h3>الإجابات الصحيحة لأسئلة الصح والخطأ</h3>
+                        <div class="true-false-container" id="teacherTfKey"></div>
+                        
+                        <div class="essay-question" id="teacherEssaySection">
+                            <h3>السؤال المقالي</h3>
+                            <p id="teacherEssayText">يتم تصحيح السؤال المقالي يدوياً من قبل المعلم في تبويب النتائج.</p>
+                        </div>
+                        
+                        <button class="btn btn-success btn-full" id="saveAnswerKeyBtn">حفظ مفتاح الإجابة</button>
+                        <div class="message" id="answerKeyMessage" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <!-- تبويب النتائج -->
+                <div id="results" class="tab-content">
+                    <h2>النتائج</h2>
+                    
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <label for="selectTestResults">اختر الاختبار:</label>
+                        <select id="selectTestResults" style="flex: 1; min-width: 200px;">
+                            <option value="">-- اختر اختبار --</option>
+                        </select>
+                        <button class="btn btn-success" id="loadResultsBtn">تحميل النتائج</button>
+                        <button class="btn btn-warning" id="autoCorrectBtn">تصحيح تلقائي</button>
+                        <button class="btn btn-info" id="refreshResultsBtn">تحديث</button>
+                        <button class="btn btn-info" id="exportResultsBtn">📊 تصدير إلى Excel</button>
+                    </div>
+                    
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>اسم الطالب</th>
+                                <th>السجل المدني</th>
+                                <th>الصف</th>
+                                <th>درجة الاختياري</th>
+                                <th>درجة الصح/خطأ</th>
+                                <th>درجة المقالي</th>
+                                <th>المجموع</th>
+                                <th>تصحيح المقالي</th>
+                                <th>معاينة</th>
+                                <th>طباعة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نموذج تعديل الطالب -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">تعديل بيانات الطالب</h3>
+                <button class="close-modal" id="closeEditStudentModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="editStudentName">اسم الطالب</label>
+                    <input type="text" id="editStudentName">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentGrade">الصف</label>
+                    <input type="text" id="editStudentGrade">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentCivilId">السجل المدني</label>
+                    <input type="text" id="editStudentCivilId">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentCommittee">اللجنة</label>
+                    <input type="text" id="editStudentCommittee">
+                </div>
+                <input type="hidden" id="editStudentId">
+                <button class="btn btn-success btn-full" id="saveEditStudentBtn">حفظ التعديلات</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نموذج معاينة إجابات الطالب -->
+    <div id="studentPreviewModal" class="modal">
+        <div class="modal-content modal-wide" style="max-width: 900px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 class="modal-title">معاينة إجابات الطالب</h3>
+                <button class="close-modal" id="closeStudentPreviewModal">&times;</button>
+            </div>
+            <div class="modal-body" id="studentPreviewContent">
             </div>
         </div>
     </div>
@@ -912,113 +1163,157 @@
             projectId: "kkkk-b7d29",
             storageBucket: "kkkk-b7d29.firebasestorage.app",
             messagingSenderId: "302362191771",
-            appId: "1:302362191771:web:5d68cb250f7e2e5195e33e"
+            appId: "1:302362191771:web:5d68cb250f7e2e5195e33e",
+            measurementId: "G-QK0B5XQ3XD"
         };
         
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log("✅ Firebase initialized successfully");
+        } catch (error) {
+            console.error("❌ Firebase initialization error:", error);
+        }
         
+        const db = firebase.firestore();
         let signaturePad = null;
         let testTimerInterval = null;
         
+        // Application State
         const appState = {
-            students: [],
+            currentUser: null,
+            userType: null,
+            currentTest: null,
             savedTests: [],
+            students: [],
             studentAnswersData: {},
             answerKey: {},
             results: [],
             activeSessions: {},
             submittedStudents: {},
-            currentUser: null,
-            userType: null,
-            currentTest: null,
             testTimeRemaining: 0,
-            isOnline: navigator.onLine
+            isOnline: navigator.onLine,
+            firebaseConnected: false
         };
         
-        // تحميل البيانات المحلية
+        // ======================= تحميل البيانات المحلية =======================
         function loadLocalData() {
-            const students = localStorage.getItem('students');
-            if(students) appState.students = JSON.parse(students);
-            else {
-                appState.students = [
-                    { id: '1', name: 'أحمد محمد', grade: 'العاشر', civilId: '1234567890', committee: 'لجنة أ' },
-                    { id: '2', name: 'محمد علي', grade: 'العاشر', civilId: '0987654321', committee: 'لجنة أ' },
-                    { id: '3', name: 'سارة أحمد', grade: 'العاشر', civilId: '1122334455', committee: 'لجنة ب' }
-                ];
-                localStorage.setItem('students', JSON.stringify(appState.students));
-            }
-            
-            const tests = localStorage.getItem('tests');
-            if(tests) appState.savedTests = JSON.parse(tests);
-            else {
-                appState.savedTests = [];
-                localStorage.setItem('tests', JSON.stringify(appState.savedTests));
+            try {
+                const studentsData = localStorage.getItem('firebase_students');
+                if (studentsData) {
+                    appState.students = JSON.parse(studentsData);
+                } else {
+                    appState.students = [
+                        { id: 'student_1', name: 'أحمد محمد', grade: 'الصف العاشر', civilId: '1234567890', committee: 'لجنة التحكم والضبط' },
+                        { id: 'student_2', name: 'محمد علي', grade: 'الصف العاشر', civilId: '0987654321', committee: 'لجنة المراقبة' },
+                        { id: 'student_3', name: 'سارة أحمد', grade: 'الصف العاشر', civilId: '1122334455', committee: 'لجنة أ' },
+                        { id: 'student_4', name: 'فاطمة محمد', grade: 'الصف العاشر', civilId: '2233445566', committee: 'لجنة ب' },
+                        { id: 'student_5', name: 'عبدالله محمد', grade: 'الصف العاشر', civilId: '3344556677', committee: 'لجنة التحكم والضبط' }
+                    ];
+                    localStorage.setItem('firebase_students', JSON.stringify(appState.students));
+                }
+                
+                const testsData = localStorage.getItem('firebase_tests');
+                if (testsData) {
+                    appState.savedTests = JSON.parse(testsData);
+                } else {
+                    appState.savedTests = [];
+                    localStorage.setItem('firebase_tests', JSON.stringify(appState.savedTests));
+                }
+                
+                const resultsData = localStorage.getItem('firebase_results');
+                if (resultsData) {
+                    appState.results = JSON.parse(resultsData);
+                }
+                
+                const studentAnswersData = localStorage.getItem('firebase_studentAnswers');
+                if (studentAnswersData) {
+                    appState.studentAnswersData = JSON.parse(studentAnswersData);
+                }
+                
+                const answerKeyData = localStorage.getItem('firebase_answerKey');
+                if (answerKeyData) {
+                    appState.answerKey = JSON.parse(answerKeyData);
+                }
+                
+                const submittedStudentsData = localStorage.getItem('firebase_submittedStudents');
+                if (submittedStudentsData) {
+                    appState.submittedStudents = JSON.parse(submittedStudentsData);
+                }
+                
+                console.log("📂 تم تحميل البيانات المحلية:", appState.students.length, "طالب");
+            } catch (error) {
+                console.error("❌ خطأ في تحميل البيانات المحلية:", error);
             }
         }
         
-        // فلترة الطلاب حسب النص المدخل
-        function filterStudents(searchText) {
-            if(!searchText.trim()) return [];
-            return appState.students.filter(s => s.name.includes(searchText.trim()));
+        // ======================= دوال البحث عن الطالب =======================
+        function filterStudentsByName(searchText) {
+            if (!searchText || searchText.trim() === '') return [];
+            const searchLower = searchText.trim().toLowerCase();
+            return appState.students.filter(student => 
+                student.name.toLowerCase().includes(searchLower)
+            );
         }
         
-        // عرض اقتراحات الطلاب
         function showStudentSuggestions(searchText) {
             const suggestionsDiv = document.getElementById('studentSuggestions');
-            const filtered = filterStudents(searchText);
+            const filteredStudents = filterStudentsByName(searchText);
             
-            if(filtered.length === 0 || !searchText.trim()) {
+            if (filteredStudents.length === 0 || !searchText.trim()) {
                 suggestionsDiv.style.display = 'none';
                 return;
             }
             
             suggestionsDiv.innerHTML = '';
-            filtered.forEach(student => {
+            filteredStudents.forEach(student => {
                 const item = document.createElement('div');
                 item.className = 'student-suggestion-item';
-                item.innerHTML = `<span class="student-name">${student.name}</span><span class="student-civil">(${student.civilId})</span>`;
-                item.onclick = () => selectStudentFromList(student);
+                item.innerHTML = `
+                    <span class="student-name">${student.name}</span>
+                    <span class="student-civil">(${student.civilId})</span>
+                    <span class="student-grade"> - ${student.grade}</span>
+                `;
+                item.onclick = () => selectStudent(student);
                 suggestionsDiv.appendChild(item);
             });
             suggestionsDiv.style.display = 'block';
         }
         
-        // اختيار طالب من القائمة
-        function selectStudentFromList(student) {
+        function selectStudent(student) {
             document.getElementById('studentSearchInput').value = student.name;
             document.getElementById('civilId').value = student.civilId;
             document.getElementById('studentSuggestions').style.display = 'none';
-            // تخزين مؤقت لبيانات الطالب المختار
             window.selectedStudent = student;
         }
         
-        // تسجيل دخول الطالب
+        // ======================= دوال الطالب =======================
         async function handleStudentLogin(civilId, testCode, loginMessage) {
-            if(!civilId || !testCode) {
+            if (!civilId || !testCode) {
                 showMessage(loginMessage, "يرجى اختيار الطالب وإدخال كود الاختبار", "error");
                 return;
             }
             
             const student = appState.students.find(s => s.civilId === civilId);
-            if(!student) {
-                showMessage(loginMessage, "السجل المدني غير مسجل في النظام", "error");
+            if (!student) {
+                showMessage(loginMessage, "❌ السجل المدني غير مسجل في النظام", "error");
                 return;
             }
             
-            const test = appState.savedTests.find(t => t.code === testCode);
-            if(!test) {
-                showMessage(loginMessage, "كود الاختبار غير صحيح", "error");
+            const test = appState.savedTests.find(t => t.code === testCode && t.sentToStudents === true);
+            if (!test) {
+                showMessage(loginMessage, `❌ كود الاختبار "${testCode}" غير صحيح أو الاختبار غير مفعل`, "error");
                 return;
             }
             
             const submissionKey = `${civilId}_${testCode}`;
-            if(appState.submittedStudents[submissionKey]) {
-                showMessage(loginMessage, "لقد قمت بتسليم هذا الاختبار مسبقاً", "error");
+            if (appState.submittedStudents[submissionKey]) {
+                showMessage(loginMessage, "❌ لقد قمت بتسليم هذا الاختبار مسبقاً ولا يمكنك الدخول مرة أخرى", "error");
                 return;
             }
             
-            appState.currentUser = { type: 'student', civilId, name: student.name, id: student.id };
+            appState.currentUser = { type: 'student', civilId: civilId, id: student.id, name: student.name };
+            appState.userType = 'student';
             appState.currentTest = test;
             
             document.getElementById('studentName').textContent = student.name;
@@ -1029,7 +1324,7 @@
             initStudentShadingSheet(test.mcqCount, test.tfCount);
             
             const essaySection = document.getElementById('studentEssaySection');
-            if(test.hasEssay) {
+            if (test.hasEssay) {
                 essaySection.style.display = 'block';
                 document.getElementById('essayQuestionText').textContent = test.essayQuestionText || 'اكتب إجابتك هنا:';
                 setTimeout(() => initDrawingCanvas(), 100);
@@ -1042,137 +1337,460 @@
             
             startTestTimer(test.duration);
             
-            showMessage(loginMessage, "✅ تم تسجيل الدخول بنجاح", "success");
+            showMessage(loginMessage, "✅ تم تسجيل الدخول بنجاح!", "success");
         }
         
-        // تسجيل دخول المعلم
         function handleTeacherLogin(civilId, testCode, loginMessage) {
-            if(civilId === "1234" && testCode === "200") {
-                appState.currentUser = { type: 'teacher' };
+            if (civilId === "1234" && testCode === "200") {
+                appState.currentUser = { type: 'teacher', civilId: civilId, id: 'teacher_1234', name: 'معلم الرياضيات' };
+                appState.userType = 'teacher';
+                
+                initTeacherInterface();
+                
                 document.getElementById('loginPage').style.display = 'none';
                 document.getElementById('teacherPage').style.display = 'block';
-                updateStudentsTable();
-                updateSavedTestsList();
-                loadTestsForAnswerKey();
-                loadTestsForResults();
-                showMessage(loginMessage, "✅ مرحباً بك أيها المعلم", "success");
+                
+                showMessage(loginMessage, "✅ تم تسجيل الدخول بنجاح كمعلم", "success");
             } else {
-                showMessage(loginMessage, "بيانات الدخول غير صحيحة", "error");
+                showMessage(loginMessage, "❌ بيانات الدخول غير صحيحة", "error");
             }
         }
         
-        // تحديث جدول الطلاب
-        function updateStudentsTable() {
-            const tbody = document.getElementById('studentsTableBody');
-            tbody.innerHTML = '';
-            appState.students.forEach(s => {
-                const row = tbody.insertRow();
-                row.insertCell(0).textContent = s.civilId;
-                row.insertCell(1).textContent = s.grade;
-                row.insertCell(2).textContent = s.name;
-                row.insertCell(3).textContent = s.committee;
-                const actions = row.insertCell(4);
-                actions.innerHTML = `<button class="btn btn-warning btn-small" onclick="deleteStudent('${s.id}')">حذف</button>`;
+        function initStudentShadingSheet(mcqCount = 25, tfCount = 12) {
+            const mcqContainer = document.getElementById('mcqQuestions');
+            mcqContainer.innerHTML = '';
+            
+            for (let i = 1; i <= mcqCount; i++) {
+                const questionItem = document.createElement('div');
+                questionItem.className = 'question-item';
+                questionItem.innerHTML = `
+                    <div class="question-number">س ${i}</div>
+                    <div class="mcq-options">
+                        <div class="mcq-option" data-question-id="${i}" data-option="أ">أ</div>
+                        <div class="mcq-option" data-question-id="${i}" data-option="ب">ب</div>
+                        <div class="mcq-option" data-question-id="${i}" data-option="ج">ج</div>
+                        <div class="mcq-option" data-question-id="${i}" data-option="د">د</div>
+                    </div>
+                `;
+                mcqContainer.appendChild(questionItem);
+            }
+            
+            mcqContainer.querySelectorAll('.mcq-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const questionId = this.dataset.questionId;
+                    const allOptions = mcqContainer.querySelectorAll(`.mcq-option[data-question-id="${questionId}"]`);
+                    allOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
+            });
+            
+            const tfContainer = document.getElementById('tfQuestions');
+            tfContainer.innerHTML = '';
+            
+            for (let i = 1; i <= tfCount; i++) {
+                const tfItem = document.createElement('div');
+                tfItem.className = 'true-false-item';
+                tfItem.innerHTML = `
+                    <div class="question-number">س ${i}</div>
+                    <div class="true-false-buttons">
+                        <div class="true-false-btn" data-question-id="${i}" data-answer="true">صح</div>
+                        <div class="true-false-btn" data-question-id="${i}" data-answer="false">خطأ</div>
+                    </div>
+                `;
+                tfContainer.appendChild(tfItem);
+            }
+            
+            tfContainer.querySelectorAll('.true-false-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const questionId = this.dataset.questionId;
+                    const allButtons = tfContainer.querySelectorAll(`.true-false-btn[data-question-id="${questionId}"]`);
+                    allButtons.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                });
             });
         }
         
-        // حذف طالب
-        window.deleteStudent = function(id) {
-            if(confirm('هل تريد حذف هذا الطالب؟')) {
-                appState.students = appState.students.filter(s => s.id !== id);
-                localStorage.setItem('students', JSON.stringify(appState.students));
-                updateStudentsTable();
+        function initDrawingCanvas() {
+            const canvas = document.getElementById('signatureCanvas');
+            const container = canvas.parentElement;
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+            
+            signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'white',
+                penColor: 'black',
+                minWidth: 1,
+                maxWidth: 10
+            });
+            
+            document.getElementById('penTool').onclick = () => {
+                document.getElementById('penTool').classList.add('active');
+                document.getElementById('eraserTool').classList.remove('active');
+                signaturePad.penColor = document.getElementById('colorPicker').value;
+            };
+            
+            document.getElementById('eraserTool').onclick = () => {
+                document.getElementById('eraserTool').classList.add('active');
+                document.getElementById('penTool').classList.remove('active');
+                signaturePad.penColor = '#ffffff';
+            };
+            
+            document.getElementById('clearDrawing').onclick = () => {
+                if (confirm("هل تريد مسح الرسم بالكامل؟")) {
+                    signaturePad.clear();
+                }
+            };
+            
+            document.getElementById('colorPicker').onchange = (e) => {
+                if (document.getElementById('penTool').classList.contains('active')) {
+                    signaturePad.penColor = e.target.value;
+                }
+            };
+            
+            document.getElementById('lineWidth').onchange = (e) => {
+                const width = parseInt(e.target.value);
+                signaturePad.minWidth = width / 2;
+                signaturePad.maxWidth = width;
+            };
+        }
+        
+        function startTestTimer(durationMinutes) {
+            const timerElement = document.getElementById('testTimer');
+            timerElement.style.display = 'flex';
+            
+            appState.testTimeRemaining = durationMinutes * 60;
+            
+            if (testTimerInterval) clearInterval(testTimerInterval);
+            
+            testTimerInterval = setInterval(() => {
+                appState.testTimeRemaining--;
+                
+                const minutes = Math.floor(appState.testTimeRemaining / 60);
+                const seconds = appState.testTimeRemaining % 60;
+                document.getElementById('timerDisplay').textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (appState.testTimeRemaining <= 0) {
+                    clearInterval(testTimerInterval);
+                    timerElement.classList.add('danger');
+                    alert("⏰ انتهى الوقت! سيتم إرسال إجاباتك تلقائياً.");
+                    document.getElementById('submitTestBtn').click();
+                } else if (appState.testTimeRemaining <= 300) {
+                    timerElement.classList.add('warning');
+                }
+            }, 1000);
+        }
+        
+        function checkTestCompletion() {
+            if (!appState.currentTest) return false;
+            
+            const mcqSelected = document.querySelectorAll('#mcqQuestions .mcq-option.selected').length;
+            const tfSelected = document.querySelectorAll('#tfQuestions .true-false-btn.selected').length;
+            
+            if (mcqSelected !== appState.currentTest.mcqCount) return false;
+            if (tfSelected !== appState.currentTest.tfCount) return false;
+            
+            if (appState.currentTest.hasEssay && (!signaturePad || signaturePad.isEmpty())) return false;
+            
+            return true;
+        }
+        
+        document.getElementById('submitTestBtn').onclick = async () => {
+            if (testTimerInterval) clearInterval(testTimerInterval);
+            
+            if (!checkTestCompletion()) {
+                document.getElementById('incompleteWarning').style.display = 'block';
+                setTimeout(() => document.getElementById('incompleteWarning').style.display = 'none', 5000);
+                return;
             }
+            
+            if (!confirm("هل أنت متأكد من إنهاء الاختبار؟ لا يمكنك العودة بعد الإنهاء.")) {
+                return;
+            }
+            
+            const mcqAnswers = {};
+            document.querySelectorAll('#mcqQuestions .mcq-option.selected').forEach(opt => {
+                mcqAnswers[opt.dataset.questionId] = opt.dataset.option;
+            });
+            
+            const tfAnswers = {};
+            document.querySelectorAll('#tfQuestions .true-false-btn.selected').forEach(btn => {
+                tfAnswers[btn.dataset.questionId] = btn.dataset.answer === 'true';
+            });
+            
+            const drawingData = signaturePad ? signaturePad.toDataURL() : '';
+            
+            const answerId = `${appState.currentUser.civilId}_${appState.currentTest.id}_${Date.now()}`;
+            const studentAnswers = {
+                id: answerId,
+                studentId: appState.currentUser.civilId,
+                studentName: appState.currentUser.name,
+                testId: appState.currentTest.id,
+                testName: appState.currentTest.name,
+                mcqAnswers: mcqAnswers,
+                tfAnswers: tfAnswers,
+                drawingAnswer: drawingData,
+                submittedAt: new Date().toISOString(),
+                status: "submitted"
+            };
+            
+            appState.studentAnswersData[answerId] = studentAnswers;
+            localStorage.setItem('firebase_studentAnswers', JSON.stringify(appState.studentAnswersData));
+            
+            const submissionKey = `${appState.currentUser.civilId}_${appState.currentTest.code}`;
+            appState.submittedStudents[submissionKey] = {
+                studentId: appState.currentUser.civilId,
+                studentName: appState.currentUser.name,
+                testCode: appState.currentTest.code,
+                submittedAt: new Date().toISOString()
+            };
+            localStorage.setItem('firebase_submittedStudents', JSON.stringify(appState.submittedStudents));
+            
+            alert("✅ تم تسليم الاختبار بنجاح!");
+            document.getElementById('studentLogoutBtn').click();
         };
         
-        // إضافة طالب
+        // ======================= دوال المعلم =======================
+        function initTeacherInterface() {
+            updateStudentsTable();
+            updateSavedTestsList();
+            loadTestsForAnswerKey();
+            loadTestsForResults();
+            updateTotalGrade();
+            
+            document.getElementById('hasEssayQuestion').addEventListener('change', function() {
+                const show = this.value === 'yes';
+                document.getElementById('essayQuestionField').style.display = show ? 'block' : 'none';
+                document.getElementById('essayGradeField').style.display = show ? 'block' : 'none';
+                updateTotalGrade();
+            });
+            
+            const testFields = ['questionsCount', 'mcqGradePerQuestion', 'tfQuestionsCount', 'tfGradePerQuestion', 'essayGrade'];
+            testFields.forEach(field => {
+                const element = document.getElementById(field);
+                if (element) element.addEventListener('input', updateTotalGrade);
+            });
+        }
+        
+        function updateTotalGrade() {
+            const questionsCount = parseInt(document.getElementById('questionsCount').value) || 0;
+            const mcqGrade = parseFloat(document.getElementById('mcqGradePerQuestion').value) || 0;
+            const tfCount = parseInt(document.getElementById('tfQuestionsCount').value) || 0;
+            const tfGrade = parseFloat(document.getElementById('tfGradePerQuestion').value) || 0;
+            const hasEssay = document.getElementById('hasEssayQuestion').value === 'yes';
+            const essayGrade = parseFloat(document.getElementById('essayGrade').value) || 0;
+            
+            const mcqTotal = questionsCount * mcqGrade;
+            const tfTotal = tfCount * tfGrade;
+            const essayTotal = hasEssay ? essayGrade : 0;
+            const total = mcqTotal + tfTotal + essayTotal;
+            
+            document.getElementById('totalMcqGrade').textContent = mcqTotal;
+            document.getElementById('totalTfGrade').textContent = tfTotal;
+            document.getElementById('totalEssayGrade').textContent = essayTotal;
+            document.getElementById('totalGrade').value = total;
+        }
+        
+        function updateStudentsTable() {
+            const tbody = document.getElementById('studentsTableBody');
+            tbody.innerHTML = '';
+            
+            appState.students.forEach(student => {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = student.civilId;
+                row.insertCell(1).textContent = student.grade;
+                row.insertCell(2).textContent = student.name;
+                row.insertCell(3).textContent = student.committee;
+                const actions = row.insertCell(4);
+                actions.innerHTML = `
+                    <button class="btn btn-warning btn-small" onclick="openEditStudentModal('${student.id}')">تعديل</button>
+                    <button class="btn btn-danger btn-small" onclick="deleteStudent('${student.id}')">حذف</button>
+                `;
+            });
+            
+            document.getElementById('studentsCount').textContent = appState.students.length;
+        }
+        
+        function updateSavedTestsList() {
+            const container = document.getElementById('savedTestsList');
+            const noTestsMessage = document.getElementById('noTestsMessage');
+            
+            if (appState.savedTests.length === 0) {
+                if (noTestsMessage) noTestsMessage.style.display = 'block';
+                if (container) container.innerHTML = '<p id="noTestsMessage">لا توجد اختبارات محفوظة حالياً. قم بإضافة اختبار جديد من تبويب "إضافة اختبار جديد".</p>';
+                return;
+            }
+            
+            if (noTestsMessage) noTestsMessage.style.display = 'none';
+            container.innerHTML = '';
+            
+            appState.savedTests.forEach(test => {
+                const testCard = document.createElement('div');
+                testCard.className = 'test-card';
+                testCard.innerHTML = `
+                    <div class="test-card-header">
+                        <h3>${test.name} - ${test.subject}</h3>
+                        <div class="test-actions">
+                            <button class="btn btn-info btn-small" onclick="loadTest('${test.id}')">تحميل</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteTest('${test.id}')">حذف</button>
+                        </div>
+                    </div>
+                    <p><strong>كود الاختبار:</strong> ${test.code}</p>
+                    <p><strong>عدد الأسئلة:</strong> ${test.mcqCount} اختياري، ${test.tfCount} صح/خطأ</p>
+                    <p><strong>المجموع الكلي:</strong> ${test.totalGrade} درجة</p>
+                    <p><strong>زمن الاختبار:</strong> ${test.duration} دقيقة</p>
+                    <p><strong>تاريخ الإنشاء:</strong> ${new Date(test.createdAt).toLocaleDateString('ar-SA')}</p>
+                `;
+                container.appendChild(testCard);
+            });
+            
+            document.getElementById('testsCount').textContent = appState.savedTests.length;
+        }
+        
+        function sendTestToStudents() {
+            const testName = document.getElementById('testName').value.trim();
+            const testSubject = document.getElementById('testSubject').value.trim();
+            const testDuration = parseInt(document.getElementById('testDuration').value) || 60;
+            const testTeacher = document.getElementById('testTeacher').value.trim();
+            const testCode = document.getElementById('testCodeTeacher').value.trim();
+            const mcqCount = parseInt(document.getElementById('questionsCount').value) || 25;
+            const mcqGrade = parseFloat(document.getElementById('mcqGradePerQuestion').value) || 2;
+            const tfCount = parseInt(document.getElementById('tfQuestionsCount').value) || 12;
+            const tfGrade = parseFloat(document.getElementById('tfGradePerQuestion').value) || 1;
+            const hasEssay = document.getElementById('hasEssayQuestion').value === 'yes';
+            const essayText = document.getElementById('essayQuestionText').value;
+            const essayGrade = parseFloat(document.getElementById('essayGrade').value) || 0;
+            
+            if (!testName || !testSubject || !testTeacher || !testCode) {
+                alert("يرجى ملء جميع الحقول المطلوبة");
+                return;
+            }
+            
+            const existingTest = appState.savedTests.find(t => t.code === testCode);
+            if (existingTest) {
+                alert(`كود الاختبار "${testCode}" مستخدم مسبقاً`);
+                return;
+            }
+            
+            const mcqTotal = mcqCount * mcqGrade;
+            const tfTotal = tfCount * tfGrade;
+            const essayTotal = hasEssay ? essayGrade : 0;
+            const totalGrade = mcqTotal + tfTotal + essayTotal;
+            
+            const newTest = {
+                id: 'test_' + Date.now(),
+                name: testName,
+                subject: testSubject,
+                duration: testDuration,
+                teacher: testTeacher,
+                code: testCode,
+                mcqCount: mcqCount,
+                mcqGradePerQuestion: mcqGrade,
+                tfCount: tfCount,
+                tfGradePerQuestion: tfGrade,
+                hasEssay: hasEssay,
+                essayQuestionText: essayText,
+                essayGrade: essayGrade,
+                totalGrade: totalGrade,
+                createdAt: new Date().toISOString(),
+                sentToStudents: true,
+                sentDate: new Date().toISOString(),
+                studentCount: appState.students.length
+            };
+            
+            appState.savedTests.push(newTest);
+            localStorage.setItem('firebase_tests', JSON.stringify(appState.savedTests));
+            
+            updateSavedTestsList();
+            loadTestsForAnswerKey();
+            loadTestsForResults();
+            
+            alert(`✅ تم إرسال الاختبار "${testName}" بنجاح إلى ${appState.students.length} طالب\nكود الاختبار: ${testCode}`);
+            
+            document.getElementById('testName').value = '';
+            document.getElementById('testCodeTeacher').value = '';
+        }
+        
         function addStudent() {
             const name = document.getElementById('addStudentName').value.trim();
             const grade = document.getElementById('addStudentGrade').value.trim();
             const civilId = document.getElementById('addStudentCivilId').value.trim();
             const committee = document.getElementById('addStudentCommittee').value.trim();
-            if(!name || !grade || !civilId || !committee) {
-                alert('يرجى ملء جميع الحقول');
+            
+            if (!name || !grade || !civilId || !committee) {
+                alert("يرجى ملء جميع بيانات الطالب");
                 return;
             }
+            
+            const existingStudent = appState.students.find(s => s.civilId === civilId);
+            if (existingStudent) {
+                alert("السجل المدني هذا مسجل مسبقاً");
+                return;
+            }
+            
             const newStudent = {
                 id: Date.now().toString(),
-                name, grade, civilId, committee
+                name: name,
+                grade: grade,
+                civilId: civilId,
+                committee: committee,
+                createdAt: new Date().toISOString()
             };
+            
             appState.students.push(newStudent);
-            localStorage.setItem('students', JSON.stringify(appState.students));
+            localStorage.setItem('firebase_students', JSON.stringify(appState.students));
+            
             updateStudentsTable();
+            
             document.getElementById('addStudentName').value = '';
             document.getElementById('addStudentGrade').value = '';
             document.getElementById('addStudentCivilId').value = '';
             document.getElementById('addStudentCommittee').value = '';
+            
+            alert("✅ تم إضافة الطالب بنجاح");
         }
         
-        // إرسال اختبار للطلاب
-        function sendTestToStudents() {
-            const name = document.getElementById('testName').value.trim();
-            const subject = document.getElementById('testSubject').value.trim();
-            const duration = parseInt(document.getElementById('testDuration').value);
-            const teacher = document.getElementById('testTeacher').value.trim();
-            const code = document.getElementById('testCodeTeacher').value.trim();
-            const mcqCount = parseInt(document.getElementById('questionsCount').value);
-            const mcqGrade = parseFloat(document.getElementById('mcqGradePerQuestion').value);
-            const tfCount = parseInt(document.getElementById('tfQuestionsCount').value);
-            const tfGrade = parseFloat(document.getElementById('tfGradePerQuestion').value);
-            const hasEssay = document.getElementById('hasEssayQuestion').value === 'yes';
-            const essayText = document.getElementById('essayQuestionText').value;
-            const essayGrade = parseFloat(document.getElementById('essayGrade').value) || 0;
-            
-            if(!name || !subject || !teacher || !code) {
-                alert('يرجى ملء جميع الحقول المطلوبة');
-                return;
+        window.deleteStudent = function(id) {
+            if (confirm("هل أنت متأكد من حذف هذا الطالب؟")) {
+                appState.students = appState.students.filter(s => s.id !== id);
+                localStorage.setItem('firebase_students', JSON.stringify(appState.students));
+                updateStudentsTable();
+                alert("✅ تم حذف الطالب بنجاح");
             }
-            
-            const totalGrade = (mcqCount * mcqGrade) + (tfCount * tfGrade) + (hasEssay ? essayGrade : 0);
-            
-            const newTest = {
-                id: Date.now().toString(),
-                name, subject, duration, teacher, code,
-                mcqCount, mcqGradePerQuestion: mcqGrade,
-                tfCount, tfGradePerQuestion: tfGrade,
-                hasEssay, essayQuestionText: essayText, essayGrade,
-                totalGrade, sentToStudents: true, sentDate: new Date().toISOString()
-            };
-            
-            appState.savedTests.push(newTest);
-            localStorage.setItem('tests', JSON.stringify(appState.savedTests));
-            updateSavedTestsList();
-            loadTestsForAnswerKey();
-            loadTestsForResults();
-            alert(`✅ تم إرسال الاختبار "${name}" بنجاح إلى ${appState.students.length} طالب\nكود الاختبار: ${code}`);
-        }
+        };
         
-        function updateSavedTestsList() {
-            const container = document.getElementById('savedTestsList');
-            if(!container) return;
-            container.innerHTML = '';
-            appState.savedTests.forEach(t => {
-                const card = document.createElement('div');
-                card.className = 'test-card';
-                card.innerHTML = `
-                    <div class="test-card-header">
-                        <h3>${t.name} - ${t.subject}</h3>
-                        <div class="test-actions">
-                            <button class="btn btn-info btn-small" onclick="loadTest('${t.id}')">تحميل</button>
-                            <button class="btn btn-danger btn-small" onclick="deleteTest('${t.id}')">حذف</button>
-                        </div>
-                    </div>
-                    <p><strong>كود الاختبار:</strong> ${t.code}</p>
-                    <p><strong>المجموع:</strong> ${t.totalGrade} درجة</p>
-                    <p><strong>الطلاب المستهدفين:</strong> ${appState.students.length}</p>
-                `;
-                container.appendChild(card);
-            });
-        }
+        window.openEditStudentModal = function(id) {
+            const student = appState.students.find(s => s.id === id);
+            if (!student) return;
+            
+            document.getElementById('editStudentName').value = student.name;
+            document.getElementById('editStudentGrade').value = student.grade;
+            document.getElementById('editStudentCivilId').value = student.civilId;
+            document.getElementById('editStudentCommittee').value = student.committee;
+            document.getElementById('editStudentId').value = student.id;
+            document.getElementById('editStudentModal').style.display = 'flex';
+        };
+        
+        document.getElementById('saveEditStudentBtn').onclick = function() {
+            const id = document.getElementById('editStudentId').value;
+            const index = appState.students.findIndex(s => s.id === id);
+            if (index !== -1) {
+                appState.students[index] = {
+                    ...appState.students[index],
+                    name: document.getElementById('editStudentName').value,
+                    grade: document.getElementById('editStudentGrade').value,
+                    civilId: document.getElementById('editStudentCivilId').value,
+                    committee: document.getElementById('editStudentCommittee').value
+                };
+                localStorage.setItem('firebase_students', JSON.stringify(appState.students));
+                updateStudentsTable();
+                document.getElementById('editStudentModal').style.display = 'none';
+                alert("✅ تم تحديث بيانات الطالب");
+            }
+        };
         
         window.loadTest = function(id) {
             const test = appState.savedTests.find(t => t.id === id);
-            if(test) {
+            if (test) {
                 document.getElementById('testName').value = test.name;
                 document.getElementById('testSubject').value = test.subject;
                 document.getElementById('testDuration').value = test.duration;
@@ -1185,186 +1803,61 @@
                 document.getElementById('hasEssayQuestion').value = test.hasEssay ? 'yes' : 'no';
                 document.getElementById('essayQuestionText').value = test.essayQuestionText || '';
                 document.getElementById('essayGrade').value = test.essayGrade;
-                const essayField = document.getElementById('essayQuestionField');
-                const essayGradeField = document.getElementById('essayGradeField');
-                if(test.hasEssay) {
-                    essayField.style.display = 'block';
-                    essayGradeField.style.display = 'block';
-                } else {
-                    essayField.style.display = 'none';
-                    essayGradeField.style.display = 'none';
-                }
+                
+                const showEssay = test.hasEssay;
+                document.getElementById('essayQuestionField').style.display = showEssay ? 'block' : 'none';
+                document.getElementById('essayGradeField').style.display = showEssay ? 'block' : 'none';
+                updateTotalGrade();
+                
                 document.querySelector('.tab-btn[data-tab="testInfo"]').click();
+                alert(`✅ تم تحميل الاختبار "${test.name}"`);
             }
         };
         
         window.deleteTest = function(id) {
-            if(confirm('هل تريد حذف هذا الاختبار؟')) {
+            if (confirm("هل أنت متأكد من حذف هذا الاختبار؟")) {
                 appState.savedTests = appState.savedTests.filter(t => t.id !== id);
-                localStorage.setItem('tests', JSON.stringify(appState.savedTests));
+                localStorage.setItem('firebase_tests', JSON.stringify(appState.savedTests));
                 updateSavedTestsList();
                 loadTestsForAnswerKey();
                 loadTestsForResults();
+                alert("✅ تم حذف الاختبار");
             }
         };
         
         function loadTestsForAnswerKey() {
             const select = document.getElementById('selectTestForAnswerKey');
-            if(!select) return;
-            select.innerHTML = '<option value="">اختر اختبار</option>';
-            appState.savedTests.forEach(t => {
+            select.innerHTML = '<option value="">-- اختر اختبار --</option>';
+            appState.savedTests.forEach(test => {
                 const option = document.createElement('option');
-                option.value = t.id;
-                option.textContent = `${t.name} - ${t.code}`;
+                option.value = test.id;
+                option.textContent = `${test.name} - ${test.subject} (${test.code})`;
                 select.appendChild(option);
             });
         }
         
         function loadTestsForResults() {
             const select = document.getElementById('selectTestResults');
-            if(!select) return;
-            select.innerHTML = '<option value="">اختر اختبار</option>';
-            appState.savedTests.forEach(t => {
+            select.innerHTML = '<option value="">-- اختر اختبار --</option>';
+            appState.savedTests.forEach(test => {
                 const option = document.createElement('option');
-                option.value = t.id;
-                option.textContent = `${t.name} - ${t.code}`;
+                option.value = test.id;
+                option.textContent = `${test.name} - ${test.subject} (${test.code})`;
                 select.appendChild(option);
             });
         }
         
-        function initStudentShadingSheet(mcqCount, tfCount) {
-            const mcqContainer = document.getElementById('mcqQuestions');
-            mcqContainer.innerHTML = '';
-            for(let i=1; i<=mcqCount; i++) {
-                const div = document.createElement('div');
-                div.className = 'question-item';
-                div.innerHTML = `
-                    <div class="question-number">س ${i}</div>
-                    <div class="mcq-options">
-                        <div class="mcq-option" data-q="${i}" data-opt="أ">أ</div>
-                        <div class="mcq-option" data-q="${i}" data-opt="ب">ب</div>
-                        <div class="mcq-option" data-q="${i}" data-opt="ج">ج</div>
-                        <div class="mcq-option" data-q="${i}" data-opt="د">د</div>
-                    </div>
-                `;
-                mcqContainer.appendChild(div);
-            }
-            document.querySelectorAll('.mcq-option').forEach(opt => {
-                opt.onclick = function() {
-                    const q = this.dataset.q;
-                    document.querySelectorAll(`.mcq-option[data-q="${q}"]`).forEach(o => o.classList.remove('selected'));
-                    this.classList.add('selected');
-                };
-            });
-            
-            const tfContainer = document.getElementById('tfQuestions');
-            tfContainer.innerHTML = '';
-            for(let i=1; i<=tfCount; i++) {
-                const div = document.createElement('div');
-                div.className = 'true-false-item';
-                div.innerHTML = `
-                    <div class="question-number">س ${i}</div>
-                    <div class="true-false-buttons">
-                        <div class="true-false-btn" data-q="${i}" data-val="true">صح</div>
-                        <div class="true-false-btn" data-q="${i}" data-val="false">خطأ</div>
-                    </div>
-                `;
-                tfContainer.appendChild(div);
-            }
-            document.querySelectorAll('.true-false-btn').forEach(btn => {
-                btn.onclick = function() {
-                    const q = this.dataset.q;
-                    document.querySelectorAll(`.true-false-btn[data-q="${q}"]`).forEach(b => b.classList.remove('selected'));
-                    this.classList.add('selected');
-                };
-            });
-        }
-        
-        function initDrawingCanvas() {
-            const canvas = document.getElementById('signatureCanvas');
-            canvas.width = canvas.parentElement.offsetWidth;
-            canvas.height = canvas.parentElement.offsetHeight;
-            signaturePad = new SignaturePad(canvas, { backgroundColor: 'white' });
-            
-            document.getElementById('penTool').onclick = () => { signaturePad.penColor = '#000000'; };
-            document.getElementById('eraserTool').onclick = () => { signaturePad.penColor = '#ffffff'; };
-            document.getElementById('clearDrawing').onclick = () => signaturePad.clear();
-            document.getElementById('colorPicker').onchange = (e) => { if(signaturePad) signaturePad.penColor = e.target.value; };
-            document.getElementById('lineWidth').onchange = (e) => { signaturePad.minWidth = parseInt(e.target.value)/2; signaturePad.maxWidth = parseInt(e.target.value); };
-        }
-        
-        function startTestTimer(minutes) {
-            const timerDiv = document.getElementById('testTimer');
-            timerDiv.style.display = 'flex';
-            appState.testTimeRemaining = minutes * 60;
-            if(testTimerInterval) clearInterval(testTimerInterval);
-            testTimerInterval = setInterval(() => {
-                appState.testTimeRemaining--;
-                const mins = Math.floor(appState.testTimeRemaining / 60);
-                const secs = appState.testTimeRemaining % 60;
-                document.getElementById('timerDisplay').textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-                if(appState.testTimeRemaining <= 0) {
-                    clearInterval(testTimerInterval);
-                    timerDiv.classList.add('danger');
-                    alert('انتهى الوقت! سيتم إرسال إجاباتك تلقائياً.');
-                    document.getElementById('submitTestBtn').click();
-                } else if(appState.testTimeRemaining <= 300) {
-                    timerDiv.classList.add('warning');
-                }
-            }, 1000);
-        }
-        
-        function checkTestCompletion() {
-            const mcqSelected = document.querySelectorAll('#mcqQuestions .mcq-option.selected').length;
-            const tfSelected = document.querySelectorAll('#tfQuestions .true-false-btn.selected').length;
-            const mcqCount = appState.currentTest.mcqCount;
-            const tfCount = appState.currentTest.tfCount;
-            if(mcqSelected !== mcqCount || tfSelected !== tfCount) return false;
-            if(appState.currentTest.hasEssay && (!signaturePad || signaturePad.isEmpty())) return false;
-            return true;
-        }
-        
-        document.getElementById('submitTestBtn').onclick = () => {
-            if(!checkTestCompletion()) {
-                document.getElementById('incompleteWarning').style.display = 'block';
-                setTimeout(() => document.getElementById('incompleteWarning').style.display = 'none', 5000);
-                return;
-            }
-            if(confirm('هل أنت متأكد من إنهاء الاختبار؟')) {
-                const mcqAnswers = {};
-                document.querySelectorAll('#mcqQuestions .mcq-option.selected').forEach(opt => {
-                    mcqAnswers[opt.dataset.q] = opt.dataset.opt;
-                });
-                const tfAnswers = {};
-                document.querySelectorAll('#tfQuestions .true-false-btn.selected').forEach(btn => {
-                    tfAnswers[btn.dataset.q] = btn.dataset.val === 'true';
-                });
-                const drawing = signaturePad ? signaturePad.toDataURL() : '';
-                const answerId = `${appState.currentUser.civilId}_${appState.currentTest.id}`;
-                appState.studentAnswersData[answerId] = {
-                    studentId: appState.currentUser.civilId,
-                    studentName: appState.currentUser.name,
-                    testId: appState.currentTest.id,
-                    mcqAnswers, tfAnswers, drawing
-                };
-                const submissionKey = `${appState.currentUser.civilId}_${appState.currentTest.code}`;
-                appState.submittedStudents[submissionKey] = true;
-                localStorage.setItem('studentAnswers', JSON.stringify(appState.studentAnswersData));
-                localStorage.setItem('submittedStudents', JSON.stringify(appState.submittedStudents));
-                alert('✅ تم تسليم الاختبار بنجاح');
-                clearInterval(testTimerInterval);
-                document.getElementById('studentLogoutBtn').click();
-            }
-        };
-        
         function showMessage(element, text, type) {
+            if (!element) return;
             element.textContent = text;
             element.className = `message ${type === 'success' ? 'success-message' : 'error-message'}`;
             element.style.display = 'block';
-            setTimeout(() => element.style.display = 'none', 5000);
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, 5000);
         }
         
-        // تهيئة واجهة تسجيل الدخول والتبديل بين الطالب والمعلم
+        // ======================= تهيئة واجهة المستخدم =======================
         function setupUI() {
             const studentBtn = document.getElementById('studentBtn');
             const teacherBtn = document.getElementById('teacherBtn');
@@ -1374,6 +1867,13 @@
             const studentSearchInput = document.getElementById('studentSearchInput');
             const loginBtn = document.getElementById('loginBtn');
             const loginMessage = document.getElementById('loginMessage');
+            const studentLogoutBtn = document.getElementById('studentLogoutBtn');
+            const teacherLogoutBtn = document.getElementById('teacherLogoutBtn');
+            const addStudentBtn = document.getElementById('addStudentBtn');
+            const sendTestBtn = document.getElementById('sendTestToStudentsBtn');
+            const quickTestBtn = document.getElementById('quickTestBtn');
+            const closeEditModal = document.getElementById('closeEditStudentModal');
+            const closePreviewModal = document.getElementById('closeStudentPreviewModal');
             
             studentBtn.onclick = () => {
                 studentBtn.classList.add('active');
@@ -1381,6 +1881,8 @@
                 studentSearchField.style.display = 'block';
                 civilIdLabel.textContent = 'السجل المدني (يتم تعبئته تلقائياً)';
                 civilIdInput.readOnly = true;
+                civilIdInput.value = '';
+                studentSearchInput.value = '';
             };
             
             teacherBtn.onclick = () => {
@@ -1392,9 +1894,12 @@
                 civilIdInput.value = '';
             };
             
-            studentSearchInput.oninput = (e) => showStudentSuggestions(e.target.value);
+            studentSearchInput.oninput = (e) => {
+                showStudentSuggestions(e.target.value);
+            };
+            
             document.addEventListener('click', (e) => {
-                if(!e.target.closest('.student-search-container')) {
+                if (!e.target.closest('.student-search-container')) {
                     document.getElementById('studentSuggestions').style.display = 'none';
                 }
             });
@@ -1402,19 +1907,19 @@
             loginBtn.onclick = () => {
                 const civilId = document.getElementById('civilId').value.trim();
                 const testCode = document.getElementById('testCode').value.trim();
-                if(!civilId || !testCode) {
-                    showMessage(loginMessage, 'يرجى ملء جميع الحقول', 'error');
+                if (!civilId || !testCode) {
+                    showMessage(loginMessage, "يرجى ملء جميع الحقول", "error");
                     return;
                 }
-                if(studentBtn.classList.contains('active')) {
+                if (studentBtn.classList.contains('active')) {
                     handleStudentLogin(civilId, testCode, loginMessage);
                 } else {
                     handleTeacherLogin(civilId, testCode, loginMessage);
                 }
             };
             
-            document.getElementById('studentLogoutBtn').onclick = () => {
-                if(testTimerInterval) clearInterval(testTimerInterval);
+            studentLogoutBtn.onclick = () => {
+                if (testTimerInterval) clearInterval(testTimerInterval);
                 document.getElementById('studentPage').style.display = 'none';
                 document.getElementById('loginPage').style.display = 'block';
                 document.getElementById('studentSearchInput').value = '';
@@ -1422,18 +1927,45 @@
                 document.getElementById('testCode').value = '';
             };
             
-            document.getElementById('teacherLogoutBtn').onclick = () => {
+            teacherLogoutBtn.onclick = () => {
                 document.getElementById('teacherPage').style.display = 'none';
                 document.getElementById('loginPage').style.display = 'block';
             };
             
-            document.getElementById('addStudentBtn').onclick = addStudent;
-            document.getElementById('sendTestToStudentsBtn').onclick = sendTestToStudents;
+            addStudentBtn.onclick = addStudent;
+            sendTestBtn.onclick = sendTestToStudents;
             
-            document.getElementById('hasEssayQuestion').onchange = function() {
-                const show = this.value === 'yes';
-                document.getElementById('essayQuestionField').style.display = show ? 'block' : 'none';
-                document.getElementById('essayGradeField').style.display = show ? 'block' : 'none';
+            quickTestBtn.onclick = () => {
+                document.getElementById('testName').value = 'الاختبار التجريبي';
+                document.getElementById('testSubject').value = 'الرياضيات';
+                document.getElementById('testDuration').value = '30';
+                document.getElementById('testTeacher').value = 'معلم الرياضيات';
+                document.getElementById('testCodeTeacher').value = 'TEST' + Math.floor(1000 + Math.random() * 9000);
+                document.getElementById('questionsCount').value = '10';
+                document.getElementById('mcqGradePerQuestion').value = '2';
+                document.getElementById('hasEssayQuestion').value = 'yes';
+                document.getElementById('essayQuestionText').value = 'اكتب إجابتك على السؤال التالي:';
+                document.getElementById('essayGrade').value = '10';
+                document.getElementById('tfQuestionsCount').value = '5';
+                document.getElementById('tfGradePerQuestion').value = '1';
+                document.getElementById('essayQuestionField').style.display = 'block';
+                document.getElementById('essayGradeField').style.display = 'block';
+                updateTotalGrade();
+                alert("✅ تم تعبئة نموذج اختبار سريع");
+            };
+            
+            if (closeEditModal) {
+                closeEditModal.onclick = () => document.getElementById('editStudentModal').style.display = 'none';
+            }
+            
+            if (closePreviewModal) {
+                closePreviewModal.onclick = () => document.getElementById('studentPreviewModal').style.display = 'none';
+            }
+            
+            window.onclick = (e) => {
+                if (e.target.classList.contains('modal')) {
+                    e.target.style.display = 'none';
+                }
             };
             
             document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1446,20 +1978,28 @@
             });
         }
         
-        // تشغيل التطبيق
+        // ======================= تشغيل التطبيق =======================
         loadLocalData();
         setupUI();
         
         // تحديث حالة الاتصال
         window.addEventListener('online', () => {
-            document.getElementById('connectionStatus').textContent = '✓ متصل بالإنترنت';
-            document.getElementById('connectionStatus').className = 'connection-status online';
+            appState.isOnline = true;
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = '✓ متصل بالإنترنت';
+            statusEl.className = 'connection-status online';
         });
+        
         window.addEventListener('offline', () => {
-            document.getElementById('connectionStatus').textContent = '✗ غير متصل بالإنترنت';
-            document.getElementById('connectionStatus').className = 'connection-status offline';
+            appState.isOnline = false;
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = '✗ غير متصل بالإنترنت';
+            statusEl.className = 'connection-status offline';
         });
+        
         document.getElementById('connectionStatus').style.display = 'block';
+        
+        console.log("✅ النظام جاهز للاستخدام");
     </script>
 </body>
 </html>
