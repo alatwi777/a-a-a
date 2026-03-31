@@ -95,7 +95,7 @@
         .file-input { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
         .file-input-label { display: inline-block; padding: 12px 20px; background-color: #17a2b8; color: white; border-radius: 5px; cursor: pointer; text-align: center; width: 100%; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background-color: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .modal-content { background-color: white; padding: 20px; border-radius: 10px; width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
         .modal-title { margin: 0; color: #1a5f7a; font-size: 18px; }
         .close-modal { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
@@ -113,6 +113,7 @@
         .grades-info { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-right: 4px solid #1a5f7a; }
         .answer-key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; }
         .answer-key-item { border: 1px solid #ddd; border-radius: 5px; padding: 8px; text-align: center; background-color: #f9f9f9; }
+        .answer-key-item .selected-answer { background-color: #28a745; color: white; border-radius: 3px; padding: 2px 5px; }
         .student-preview-answer { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px; }
         .student-preview-answer.correct { background-color: #d4edda; border-color: #28a745; }
         .student-preview-answer.incorrect { background-color: #f8d7da; border-color: #dc3545; }
@@ -226,7 +227,7 @@
                         <label class="file-input-label">📁 استيراد طلاب من ملف Excel<input type="file" id="excelFileInput" class="file-input" accept=".xlsx, .xls, .csv"></label>
                     </div>
                     <div id="importStatus" style="display: none;"></div>
-                    <table id="studentsTable"><thead><tr><th>السجل المدني</th><th>الصف</th><th>اسم الطالب</th><th>اللجنة</th><th>الإجراءات</th></tr></thead><tbody id="studentsTableBody"></tbody></table>
+                    <table id="studentsTable"><thead><tr><th>السجل المدني</th><th>الصف</th><th>اسم الطالب</th><th>اللجنة</th><th>الإجراءات</th></thead><tbody id="studentsTableBody"></tbody></table>
                     <div style="margin-top: 20px;"><span id="studentsCount">0</span> طالب مسجل في النظام</div>
                 </div>
                 
@@ -264,13 +265,14 @@
                 <!-- تبويب مفتاح الإجابة -->
                 <div id="answerKey" class="tab-content">
                     <h2>مفتاح الإجابة للمعلم</h2>
-                    <p>هنا يمكنك تعيين الإجابات الصحيحة للأسئلة ليتم التصحيح التلقائي بناءً عليها.</p>
+                    <p>هنا يمكنك تعيين الإجابات الصحيحة للأسئلة ليتم التصحيح التلقائي بناءً عليها. <strong style="color: #28a745;">كل اختبار له مفتاح إجابة مستقل خاص به.</strong></p>
                     <div class="form-group"><label>اختر اختبار:</label><select id="selectTestForAnswerKey" style="width: 100%;"><option value="">-- اختر اختبار --</option></select></div>
                     <div id="teacherAnswerKeyPanel" style="display: none;">
+                        <div id="selectedTestInfo" style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 15px;"></div>
                         <div id="teacherMcqKeyContainer"></div>
                         <div id="teacherTfKeyContainer"></div>
                         <div id="teacherEssayInfo"></div>
-                        <button class="btn btn-success btn-full" id="saveAnswerKeyBtn">💾 حفظ مفتاح الإجابة</button>
+                        <button class="btn btn-success btn-full" id="saveAnswerKeyBtn">💾 حفظ مفتاح الإجابة لهذا الاختبار</button>
                         <div class="message" id="answerKeyMessage" style="display: none;"></div>
                     </div>
                 </div>
@@ -316,10 +318,11 @@
         const appState = {
             currentUser: null,
             currentTest: null,
+            currentAnswerKeyTestId: null,
             savedTests: [],
             students: [],
             studentAnswers: {},
-            answerKey: {},
+            answerKeys: {}, // مفتاح الإجابة لكل اختبار بشكل مستقل { testId: { mcq: {}, tf: {} } }
             results: [],
             submittedStudents: {},
             testTimeRemaining: 0,
@@ -340,9 +343,9 @@
                 for (const test of appState.savedTests) {
                     await db.collection('tests').doc(test.id).set(test, { merge: true });
                 }
-                // مزامنة مفتاح الإجابة
-                if (appState.answerKey && appState.answerKey.testId) {
-                    await db.collection('answerKeys').doc(appState.answerKey.testId).set(appState.answerKey, { merge: true });
+                // مزامنة مفاتيح الإجابة (لكل اختبار على حدة)
+                for (const [testId, answerKey] of Object.entries(appState.answerKeys)) {
+                    await db.collection('answerKeys').doc(testId).set(answerKey, { merge: true });
                 }
                 // مزامنة النتائج
                 for (const result of appState.results) {
@@ -377,21 +380,31 @@
                     appState.savedTests = testsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                     localStorage.setItem('tests', JSON.stringify(appState.savedTests));
                 }
+                // تحميل مفاتيح الإجابة (لكل اختبار)
+                const answerKeysSnap = await db.collection('answerKeys').get();
+                if (!answerKeysSnap.empty) {
+                    answerKeysSnap.docs.forEach(doc => {
+                        appState.answerKeys[doc.id] = { testId: doc.id, ...doc.data() };
+                    });
+                    localStorage.setItem('answerKeys', JSON.stringify(appState.answerKeys));
+                }
                 // تحميل النتائج
                 const resultsSnap = await db.collection('results').get();
                 if (!resultsSnap.empty) {
                     appState.results = resultsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                     localStorage.setItem('results', JSON.stringify(appState.results));
                 }
-                // تحميل مفتاح الإجابة
-                const answerKeySnap = await db.collection('answerKeys').get();
-                if (!answerKeySnap.empty) {
-                    const latestKey = answerKeySnap.docs[answerKeySnap.docs.length - 1];
-                    appState.answerKey = { id: latestKey.id, ...latestKey.data() };
-                    localStorage.setItem('answerKey', JSON.stringify(appState.answerKey));
+                // تحميل إجابات الطلاب
+                const answersSnap = await db.collection('studentAnswers').get();
+                if (!answersSnap.empty) {
+                    answersSnap.docs.forEach(doc => {
+                        appState.studentAnswers[doc.id] = { id: doc.id, ...doc.data() };
+                    });
+                    localStorage.setItem('studentAnswers', JSON.stringify(appState.studentAnswers));
                 }
                 updateStudentsTable();
                 updateSavedTestsList();
+                loadTestsForSelects();
                 showSyncStatus("✓ تم تحميل البيانات", true);
                 appState.firebaseReady = true;
             } catch (error) {
@@ -590,11 +603,12 @@
             if (appState.savedTests.length === 0) { container.innerHTML = '<p>لا توجد اختبارات محفوظة حالياً.</p>'; document.getElementById('testsCount').textContent = '0'; return; }
             container.innerHTML = '';
             appState.savedTests.forEach(t => {
+                const hasAnswerKey = appState.answerKeys[t.id] ? '✅' : '❌';
                 const card = document.createElement('div');
                 card.className = 'test-card';
                 card.innerHTML = `<div class="test-card-header"><h3>${t.name} - ${t.subject}</h3><div class="test-actions">
                     <button class="btn btn-info btn-small" onclick="loadTest('${t.id}')">تحميل</button>
-                    <button class="btn btn-warning btn-small" onclick="setAnswerKeyForTest('${t.id}')">تعيين مفتاح</button>
+                    <button class="btn btn-warning btn-small" onclick="setAnswerKeyForTest('${t.id}')">🔑 مفتاح الإجابة ${hasAnswerKey}</button>
                     <button class="btn btn-danger btn-small" onclick="deleteTest('${t.id}')">حذف</button></div></div>
                     <p><strong>كود الاختبار:</strong> ${t.code} | <strong>المجموع:</strong> ${t.totalGrade} درجة</p>
                     <p><strong>الأسئلة:</strong> ${t.mcqCount} اختياري، ${t.tfCount} صح/خطأ</p>`;
@@ -730,78 +744,170 @@
         function loadTestsForSelects() {
             const selectKey = document.getElementById('selectTestForAnswerKey');
             const selectResults = document.getElementById('selectTestResults');
-            if (selectKey) { selectKey.innerHTML = '<option value="">-- اختر اختبار --</option>'; appState.savedTests.forEach(t => { selectKey.innerHTML += `<option value="${t.id}">${t.name} - ${t.code}</option>`; }); }
-            if (selectResults) { selectResults.innerHTML = '<option value="">-- اختر اختبار --</option>'; appState.savedTests.forEach(t => { selectResults.innerHTML += `<option value="${t.id}">${t.name} - ${t.code}</option>`; }); }
+            if (selectKey) { 
+                selectKey.innerHTML = '<option value="">-- اختر اختبار --</option>'; 
+                appState.savedTests.forEach(t => { 
+                    const hasKey = appState.answerKeys[t.id] ? ' ✓ (مفتاح محفوظ)' : '';
+                    selectKey.innerHTML += `<option value="${t.id}">${t.name} - ${t.code}${hasKey}</option>`;
+                });
+            }
+            if (selectResults) { 
+                selectResults.innerHTML = '<option value="">-- اختر اختبار --</option>'; 
+                appState.savedTests.forEach(t => { 
+                    selectResults.innerHTML += `<option value="${t.id}">${t.name} - ${t.code}</option>`;
+                });
+            }
         }
         
-        // ======================= مفتاح الإجابة =======================
+        // ======================= مفتاح الإجابة (مستقل لكل اختبار) =======================
         window.setAnswerKeyForTest = function(testId) {
             const test = appState.savedTests.find(t => t.id === testId);
             if (!test) return;
-            appState.currentTest = test;
+            appState.currentAnswerKeyTestId = testId;
             document.getElementById('selectTestForAnswerKey').value = testId;
             loadAnswerKeyPanel(test);
+            document.querySelector('.tab-btn[data-tab="answerKey"]').click();
         };
         
         function loadAnswerKeyPanel(test) {
             const panel = document.getElementById('teacherAnswerKeyPanel');
             if (!panel) return;
             panel.style.display = 'block';
+            
+            const hasSavedKey = appState.answerKeys[test.id];
+            document.getElementById('selectedTestInfo').innerHTML = `
+                <strong>📌 الاختبار المحدد:</strong> ${test.name} (${test.code})<br>
+                <strong>عدد الأسئلة:</strong> ${test.mcqCount} اختياري، ${test.tfCount} صح/خطأ<br>
+                ${test.hasEssay ? `<strong>السؤال المقالي:</strong> ${test.essayGrade} درجة` : ''}<br>
+                ${hasSavedKey ? '<span style="color: #28a745;">✅ يوجد مفتاح إجابة محفوظ لهذا الاختبار</span>' : '<span style="color: #ffc107;">⚠️ لا يوجد مفتاح إجابة لهذا الاختبار بعد</span>'}
+            `;
+            
+            // عرض الأسئلة الاختيارية
             const mcqContainer = document.getElementById('teacherMcqKeyContainer');
-            mcqContainer.innerHTML = `<h3>الأسئلة الاختيارية (${test.mcqCount} سؤال)</h3><div class="answer-key-grid" id="mcqKeyGrid"></div>`;
+            mcqContainer.innerHTML = `<h3>الأسئلة الاختيارية (اختر الإجابة الصحيحة لكل سؤال)</h3><div class="answer-key-grid" id="mcqKeyGrid"></div>`;
             const mcqGrid = document.getElementById('mcqKeyGrid');
+            const savedMcq = hasSavedKey ? appState.answerKeys[test.id].mcq || {} : {};
+            
             for (let i = 1; i <= test.mcqCount; i++) {
                 const div = document.createElement('div');
                 div.className = 'answer-key-item';
-                div.innerHTML = `<div><strong>س ${i}</strong></div><div style="display:flex; gap:5px; justify-content:center; margin-top:5px;">
-                    <button class="btn-small" data-q="${i}" data-opt="أ" style="padding:3px 8px;">أ</button>
-                    <button class="btn-small" data-q="${i}" data-opt="ب" style="padding:3px 8px;">ب</button>
-                    <button class="btn-small" data-q="${i}" data-opt="ج" style="padding:3px 8px;">ج</button>
-                    <button class="btn-small" data-q="${i}" data-opt="د" style="padding:3px 8px;">د</button></div>`;
+                const savedAnswer = savedMcq[i] || '';
+                div.innerHTML = `
+                    <div><strong>سؤال ${i}</strong></div>
+                    <div style="display:flex; gap:5px; justify-content:center; margin-top:5px;">
+                        <button class="btn-small mcq-key-btn" data-q="${i}" data-opt="أ" style="padding:3px 8px; ${savedAnswer === 'أ' ? 'background-color:#28a745; color:white;' : ''}">أ</button>
+                        <button class="btn-small mcq-key-btn" data-q="${i}" data-opt="ب" style="padding:3px 8px; ${savedAnswer === 'ب' ? 'background-color:#28a745; color:white;' : ''}">ب</button>
+                        <button class="btn-small mcq-key-btn" data-q="${i}" data-opt="ج" style="padding:3px 8px; ${savedAnswer === 'ج' ? 'background-color:#28a745; color:white;' : ''}">ج</button>
+                        <button class="btn-small mcq-key-btn" data-q="${i}" data-opt="د" style="padding:3px 8px; ${savedAnswer === 'د' ? 'background-color:#28a745; color:white;' : ''}">د</button>
+                    </div>
+                `;
                 mcqGrid.appendChild(div);
             }
+            
+            // عرض أسئلة الصح والخطأ
             const tfContainer = document.getElementById('teacherTfKeyContainer');
-            tfContainer.innerHTML = `<h3>أسئلة الصح والخطأ (${test.tfCount} سؤال)</h3><div class="answer-key-grid" id="tfKeyGrid"></div>`;
+            tfContainer.innerHTML = `<h3>أسئلة الصح والخطأ (اختر الإجابة الصحيحة لكل سؤال)</h3><div class="answer-key-grid" id="tfKeyGrid"></div>`;
             const tfGrid = document.getElementById('tfKeyGrid');
+            const savedTf = hasSavedKey ? appState.answerKeys[test.id].tf || {} : {};
+            
             for (let i = 1; i <= test.tfCount; i++) {
                 const div = document.createElement('div');
                 div.className = 'answer-key-item';
-                div.innerHTML = `<div><strong>س ${i}</strong></div><div style="display:flex; gap:5px; justify-content:center; margin-top:5px;">
-                    <button class="btn-small" data-q="${i}" data-val="true" style="padding:3px 8px;">صح</button>
-                    <button class="btn-small" data-q="${i}" data-val="false" style="padding:3px 8px;">خطأ</button></div>`;
+                const savedAnswer = savedTf[i];
+                div.innerHTML = `
+                    <div><strong>سؤال ${i}</strong></div>
+                    <div style="display:flex; gap:5px; justify-content:center; margin-top:5px;">
+                        <button class="btn-small tf-key-btn" data-q="${i}" data-val="true" style="padding:3px 8px; ${savedAnswer === true ? 'background-color:#28a745; color:white;' : ''}">صح</button>
+                        <button class="btn-small tf-key-btn" data-q="${i}" data-val="false" style="padding:3px 8px; ${savedAnswer === false ? 'background-color:#28a745; color:white;' : ''}">خطأ</button>
+                    </div>
+                `;
                 tfGrid.appendChild(div);
             }
-            document.getElementById('teacherEssayInfo').innerHTML = test.hasEssay ? `<h3>السؤال المقالي</h3><p>${test.essayQuestionText}</p><p><strong>الدرجة:</strong> ${test.essayGrade}</p>` : '<p>لا يوجد سؤال مقالي</p>';
             
-            if (appState.answerKey && appState.answerKey.testId === test.id) {
-                if (appState.answerKey.mcq) Object.entries(appState.answerKey.mcq).forEach(([q, ans]) => { document.querySelectorAll(`[data-q="${q}"][data-opt="${ans}"]`).forEach(btn => btn.style.backgroundColor = '#28a745'); });
-                if (appState.answerKey.tf) Object.entries(appState.answerKey.tf).forEach(([q, ans]) => { document.querySelectorAll(`[data-q="${q}"][data-val="${ans}"]`).forEach(btn => btn.style.backgroundColor = '#28a745'); });
-            }
+            // السؤال المقالي
+            document.getElementById('teacherEssayInfo').innerHTML = test.hasEssay ? 
+                `<h3>السؤال المقالي</h3><p><strong>نص السؤال:</strong> ${test.essayQuestionText}</p><p><strong>الدرجة:</strong> ${test.essayGrade} درجة</p><p style="color:#666;">ملاحظة: يتم تصحيح السؤال المقالي يدوياً من تبويب النتائج</p>` : 
+                '<p>لا يوجد سؤال مقالي في هذا الاختبار</p>';
+            
+            // إضافة أحداث للأزرار
+            document.querySelectorAll('.mcq-key-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const q = this.dataset.q;
+                    document.querySelectorAll(`.mcq-key-btn[data-q="${q}"]`).forEach(b => {
+                        b.style.backgroundColor = '';
+                        b.style.color = '';
+                    });
+                    this.style.backgroundColor = '#28a745';
+                    this.style.color = 'white';
+                };
+            });
+            
+            document.querySelectorAll('.tf-key-btn').forEach(btn => {
+                btn.onclick = function() {
+                    const q = this.dataset.q;
+                    document.querySelectorAll(`.tf-key-btn[data-q="${q}"]`).forEach(b => {
+                        b.style.backgroundColor = '';
+                        b.style.color = '';
+                    });
+                    this.style.backgroundColor = '#28a745';
+                    this.style.color = 'white';
+                };
+            });
         }
         
         document.getElementById('saveAnswerKeyBtn').onclick = async () => {
-            if (!appState.currentTest) { alert("يرجى اختيار اختبار أولاً"); return; }
+            const testId = document.getElementById('selectTestForAnswerKey').value;
+            if (!testId) { alert("يرجى اختيار اختبار أولاً"); return; }
+            const test = appState.savedTests.find(t => t.id === testId);
+            if (!test) return;
+            
+            // جمع إجابات الأسئلة الاختيارية
             const mcqKey = {};
-            document.querySelectorAll('#mcqKeyGrid .btn-small').forEach(btn => {
+            document.querySelectorAll('.mcq-key-btn').forEach(btn => {
                 if (btn.style.backgroundColor === 'rgb(40, 167, 69)' || btn.style.backgroundColor === '#28a745') {
                     mcqKey[btn.dataset.q] = btn.dataset.opt;
                 }
             });
+            
+            // جمع إجابات أسئلة الصح والخطأ
             const tfKey = {};
-            document.querySelectorAll('#tfKeyGrid .btn-small').forEach(btn => {
+            document.querySelectorAll('.tf-key-btn').forEach(btn => {
                 if (btn.style.backgroundColor === 'rgb(40, 167, 69)' || btn.style.backgroundColor === '#28a745') {
                     tfKey[btn.dataset.q] = btn.dataset.val === 'true';
                 }
             });
-            if (Object.keys(mcqKey).length !== appState.currentTest.mcqCount) { alert(`يرجى اختيار إجابة لجميع الأسئلة الاختيارية (${appState.currentTest.mcqCount} سؤال)`); return; }
-            if (Object.keys(tfKey).length !== appState.currentTest.tfCount) { alert(`يرجى اختيار إجابة لجميع أسئلة الصح والخطأ (${appState.currentTest.tfCount} سؤال)`); return; }
-            const answerKey = { testId: appState.currentTest.id, testName: appState.currentTest.name, mcq: mcqKey, tf: tfKey, updatedAt: new Date().toISOString() };
-            appState.answerKey = answerKey;
-            localStorage.setItem('answerKey', JSON.stringify(answerKey));
-            if (appState.isOnline) await db.collection('answerKeys').doc(appState.currentTest.id).set(answerKey);
-            showToast("✅ تم حفظ مفتاح الإجابة", "success");
-            document.getElementById('answerKeyMessage').innerHTML = '<div class="success-message">تم حفظ مفتاح الإجابة بنجاح</div>';
+            
+            // التحقق من اكتمال المفتاح
+            if (Object.keys(mcqKey).length !== test.mcqCount) {
+                alert(`يرجى اختيار إجابة لجميع الأسئلة الاختيارية (${test.mcqCount} سؤال)`);
+                return;
+            }
+            if (Object.keys(tfKey).length !== test.tfCount) {
+                alert(`يرجى اختيار إجابة لجميع أسئلة الصح والخطأ (${test.tfCount} سؤال)`);
+                return;
+            }
+            
+            // حفظ مفتاح الإجابة للاختبار المحدد
+            const answerKey = { testId: test.id, testName: test.name, mcq: mcqKey, tf: tfKey, updatedAt: new Date().toISOString() };
+            appState.answerKeys[test.id] = answerKey;
+            localStorage.setItem('answerKeys', JSON.stringify(appState.answerKeys));
+            
+            if (appState.isOnline) await db.collection('answerKeys').doc(test.id).set(answerKey);
+            
+            showToast(`✅ تم حفظ مفتاح الإجابة للاختبار "${test.name}" بنجاح`, "success");
+            document.getElementById('answerKeyMessage').innerHTML = `<div class="success-message">✅ تم حفظ مفتاح الإجابة للاختبار "${test.name}" بنجاح</div>`;
             setTimeout(() => document.getElementById('answerKeyMessage').innerHTML = '', 3000);
+            
+            // تحديث القائمة لإظهار أن المفتاح تم حفظه
+            loadTestsForSelects();
+            updateSavedTestsList();
+        };
+        
+        document.getElementById('selectTestForAnswerKey').onchange = (e) => {
+            if (e.target.value) {
+                const test = appState.savedTests.find(t => t.id === e.target.value);
+                if (test) loadAnswerKeyPanel(test);
+            }
         };
         
         // ======================= النتائج =======================
@@ -851,19 +957,22 @@
         
         document.getElementById('autoCorrectBtn').onclick = async () => {
             if (!appState.currentTest) { alert("يرجى تحميل اختبار أولاً"); return; }
-            if (!appState.answerKey || appState.answerKey.testId !== appState.currentTest.id) { alert("يرجى تعيين مفتاح الإجابة أولاً من تبويب مفتاح الإجابة"); return; }
+            const answerKey = appState.answerKeys[appState.currentTest.id];
+            if (!answerKey) { alert("يرجى تعيين مفتاح الإجابة أولاً من تبويب مفتاح الإجابة"); return; }
+            
             const answers = Object.values(appState.studentAnswers).filter(a => a.testId === appState.currentTest.id);
             if (answers.length === 0) { alert("لا توجد إجابات لهذا الاختبار"); return; }
+            
             for (const ans of answers) {
                 let mcqScore = 0, tfScore = 0;
                 if (ans.mcqAnswers) {
                     for (let i = 1; i <= appState.currentTest.mcqCount; i++) {
-                        if (ans.mcqAnswers[i] === appState.answerKey.mcq[i]) mcqScore += appState.currentTest.mcqGradePerQuestion;
+                        if (ans.mcqAnswers[i] === answerKey.mcq[i]) mcqScore += appState.currentTest.mcqGradePerQuestion;
                     }
                 }
                 if (ans.tfAnswers) {
                     for (let i = 1; i <= appState.currentTest.tfCount; i++) {
-                        if (ans.tfAnswers[i] === appState.answerKey.tf[i]) tfScore += appState.currentTest.tfGradePerQuestion;
+                        if (ans.tfAnswers[i] === answerKey.tf[i]) tfScore += appState.currentTest.tfGradePerQuestion;
                     }
                 }
                 const resultId = `${ans.studentId}_${ans.testId}`;
@@ -883,22 +992,30 @@
             const answer = Object.values(appState.studentAnswers).find(a => a.studentId === studentId && a.testId === testId);
             const student = appState.students.find(s => s.civilId === studentId);
             const test = appState.savedTests.find(t => t.id === testId);
+            const answerKey = appState.answerKeys[testId];
+            
             if (!answer || !student || !test) { alert("لا توجد بيانات كافية للمعاينة"); return; }
+            
             let html = `<div class="student-preview"><h3>${student.name}</h3><p>السجل: ${student.civilId} | الصف: ${student.grade}</p><h4>الإجابات:</h4>`;
+            
             for (let i = 1; i <= test.mcqCount; i++) {
                 const studentAns = answer.mcqAnswers[i];
-                const correctAns = appState.answerKey.mcq ? appState.answerKey.mcq[i] : null;
+                const correctAns = answerKey ? answerKey.mcq[i] : null;
                 const isCorrect = studentAns === correctAns;
-                html += `<div class="student-preview-answer ${isCorrect ? 'correct' : 'incorrect'}"><strong>س ${i} (اختياري):</strong> إجابة الطالب: ${studentAns || 'لم يُجب'} | الإجابة الصحيحة: ${correctAns || 'غير محدد'}</div>`;
+                const statusClass = studentAns ? (isCorrect ? 'correct' : 'incorrect') : 'not-answered';
+                html += `<div class="student-preview-answer ${statusClass}"><strong>س ${i} (اختياري):</strong> إجابة الطالب: ${studentAns || 'لم يُجب'} | الإجابة الصحيحة: ${correctAns || 'غير محدد'}</div>`;
             }
+            
             for (let i = 1; i <= test.tfCount; i++) {
                 const studentAns = answer.tfAnswers[i];
-                const correctAns = appState.answerKey.tf ? appState.answerKey.tf[i] : null;
+                const correctAns = answerKey ? answerKey.tf[i] : null;
                 const isCorrect = studentAns === correctAns;
                 const studentText = studentAns === true ? 'صح' : studentAns === false ? 'خطأ' : 'لم يُجب';
                 const correctText = correctAns === true ? 'صح' : correctAns === false ? 'خطأ' : 'غير محدد';
-                html += `<div class="student-preview-answer ${isCorrect ? 'correct' : 'incorrect'}"><strong>س ${i} (صح/خطأ):</strong> إجابة الطالب: ${studentText} | الإجابة الصحيحة: ${correctText}</div>`;
+                const statusClass = studentAns !== undefined ? (isCorrect ? 'correct' : 'incorrect') : 'not-answered';
+                html += `<div class="student-preview-answer ${statusClass}"><strong>س ${i} (صح/خطأ):</strong> إجابة الطالب: ${studentText} | الإجابة الصحيحة: ${correctText}</div>`;
             }
+            
             if (test.hasEssay && answer.drawingAnswer) html += `<div class="student-preview-answer"><strong>السؤال المقالي:</strong><br><img src="${answer.drawingAnswer}" style="max-width:100%; border:1px solid #ddd; margin-top:10px;"></div>`;
             html += `</div>`;
             document.getElementById('studentPreviewContent').innerHTML = html;
@@ -944,8 +1061,8 @@
                 appState.results = results ? JSON.parse(results) : [];
                 const answers = localStorage.getItem('studentAnswers');
                 appState.studentAnswers = answers ? JSON.parse(answers) : {};
-                const answerKey = localStorage.getItem('answerKey');
-                if (answerKey) appState.answerKey = JSON.parse(answerKey);
+                const answerKeys = localStorage.getItem('answerKeys');
+                appState.answerKeys = answerKeys ? JSON.parse(answerKeys) : {};
                 const submitted = localStorage.getItem('submittedStudents');
                 appState.submittedStudents = submitted ? JSON.parse(submitted) : {};
                 if (appState.savedTests.length === 0) localStorage.setItem('tests', JSON.stringify([]));
@@ -961,13 +1078,12 @@
             document.getElementById('loginBtn').onclick = () => { const civil = document.getElementById('civilId').value.trim(); const code = document.getElementById('testCode').value.trim(); const msg = document.getElementById('loginMessage'); if (!civil || !code) { showMessage(msg, "يرجى ملء جميع الحقول", "error"); return; } if (document.getElementById('studentBtn').classList.contains('active')) studentLogin(civil, code, msg); else teacherLogin(civil, code, msg); };
             document.getElementById('studentLogoutBtn').onclick = () => { if (testTimerInterval) clearInterval(testTimerInterval); document.getElementById('studentPage').style.display = 'none'; document.getElementById('loginPage').style.display = 'block'; };
             document.getElementById('teacherLogoutBtn').onclick = () => { document.getElementById('teacherPage').style.display = 'none'; document.getElementById('loginPage').style.display = 'block'; };
-            document.getElementById('manualSyncBtn').onclick = async () => { await syncToFirebase(); await loadFromFirebase(); updateStudentsTable(); updateSavedTestsList(); };
+            document.getElementById('manualSyncBtn').onclick = async () => { await syncToFirebase(); await loadFromFirebase(); updateStudentsTable(); updateSavedTestsList(); loadTestsForSelects(); };
             document.getElementById('addStudentBtn').onclick = addStudent;
             document.getElementById('sendTestToStudentsBtn').onclick = sendTest;
             document.getElementById('quickTestBtn').onclick = () => { document.getElementById('testName').value = 'اختبار سريع'; document.getElementById('testCodeTeacher').value = 'TEST' + Math.floor(1000+Math.random()*9000); document.getElementById('questionsCount').value = '10'; document.getElementById('tfQuestionsCount').value = '5'; updateTotalGrade(); showToast("تم إنشاء اختبار سريع", "info"); };
             document.getElementById('hasEssayQuestion').onchange = () => { const show = document.getElementById('hasEssayQuestion').value === 'yes'; document.getElementById('essayQuestionField').style.display = show ? 'block' : 'none'; document.getElementById('essayGradeField').style.display = show ? 'block' : 'none'; updateTotalGrade(); };
-            document.getElementById('selectTestForAnswerKey').onchange = (e) => { if (e.target.value) { const test = appState.savedTests.find(t => t.id === e.target.value); if (test) loadAnswerKeyPanel(test); } };
-            document.querySelectorAll('.tab-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById(btn.dataset.tab).classList.add('active'); if (btn.dataset.tab === 'answerKey' && appState.currentTest) loadAnswerKeyPanel(appState.currentTest); }; });
+            document.querySelectorAll('.tab-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); btn.classList.add('active'); document.getElementById(btn.dataset.tab).classList.add('active'); }; });
             document.getElementById('closeEditStudentModal').onclick = () => document.getElementById('editStudentModal').style.display = 'none';
             document.getElementById('closeStudentPreviewModal').onclick = () => document.getElementById('studentPreviewModal').style.display = 'none';
             window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
